@@ -3,12 +3,12 @@ const mongoose = require('mongoose');
 
 // Post collection model
 const PostSchema = new mongoose.Schema({
-    username: { type: String, required: true },
-    title: { type: String, requires: true },
+    userId: { type: String, required: true },
+    title: { type: String, required: true },
     description: { type: String, required: true },
-    category: { type: String, enum: ['wildlife', 'wedding', 'portrait', 'city', 'street','model'], required: true },
-    image: { data: Buffer, contentType: String }
+    category: { type: String, enum: ['wildlife', 'wedding', 'portrait', 'city', 'street'], required: true },
+    imageLink: { type: String, required: true }
 });
 
 // creating collection
-module.exports = mongoose.model('Post', PostSchema);
+module.exports = mongoose.Model.Post || mongoose.model('Post', PostSchema);

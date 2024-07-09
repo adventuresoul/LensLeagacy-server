@@ -1,13 +1,14 @@
-// Import required packages
 const express = require('express');
+const cors = require('cors');
 require('dotenv').config(); // Load environment variables
 
-// Create an Express app instance
+
 const app = express();
 
 // Middleware to parse URL-encoded data and JSON data
+app.use(cors());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json()); // Replaces body-parser
+app.use(express.json()); 
 
 // Connect to MongoDB
 const connectToMongoDB = require('./models/dbConfigure');
@@ -26,7 +27,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server
-const PORT = process.env.PORT || 3000; // Default port if not specified in env
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);
 });

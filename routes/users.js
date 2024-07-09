@@ -4,12 +4,17 @@ const express = require('express');
 // define a route for users
 const router = express.Router();
 
-// Import the Model
+// Import the User Model
 const User = require('../models/User');
+
+// Import methods from authentication module
+const { generateToken, verifyToken } = require('../Utils/auth');
+const { append } = require('express/lib/response');
+
 
 // API methods
 // GET method
-router.get('/', async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
     try {
         const users = await User.find();
         res.status(200).json(users);
@@ -19,20 +24,32 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET particular user by id, through params
-router.get('/:id', async (req, res) => {
+// GET my profile, authenticated
+router.get('/me', verifyToken, async (req, res) => {
     try {
-        const query = { _id : req.params.id };
-        const user = await User.find(query);
-        if(user){
-            res.json(user[0]);
-        }
-        else{
+        const query = { _id: req.user.userId };
+        const user = await User.findOne(query);
+        if (user) {
+            res.status(200).json(user); // Send userProfile in the response
+        } else {
             res.status(404).send("User not found");
         }
-        
-    } 
-    catch (error) {
+    } catch (error) {
+        res.status(500).send("Error: " + error);
+    }
+});
+
+// GET particular user by id, through token
+router.get('/:id', verifyToken, async (req, res) => {
+    try {
+        const query = { _id: req.params.id };
+        const user = await User.findOne(query);
+        if (user) {
+            res.status(200).json(user); // Send userProfile in the response
+        } else {
+            res.status(404).send("User not found");
+        }
+    } catch (error) {
         res.status(500).send("Error: " + error);
     }
 });
@@ -41,11 +58,12 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
     // creating a new User model
     const newUser = new User({
-        name : req.body.name,
+        username : req.body.username,
         email : req.body.email,
         phone : req.body.phone,
         password : req.body.password
     });
+
     // insert the document in collection
     try{
         const userAck = await newUser.save();
@@ -56,28 +74,51 @@ router.post('/', async (req, res) => {
     }
 });
 
+// Login
+router.post('/login', async (req, res) => {
+    // get email and password from req.body
+    const { email, password } = req.body;
 
-// PUT method
-router.put('/:id', async (req, res) => {
-    const { name, email, phone, password } = req.body;
-
+    // authenticate the user
     try{
-        const user = await User.findOne({ email: req.body.email });
-        if (!user){
-            res.status(404).send("User doesn't exist");
+        const user = await User.findOne({ email: email, password: password });
+        if(!user){
+            return res.status(401).send('Invalid credentials');
         }
-        else{
-            await User.updateOne({ email: req.body.email }, { $set: updateField });
-            res.send("User updated succesfully");
+        const isPasswordValid = password === user.password;
+        if(!isPasswordValid){
+            return res.status(401).send('Invalid ccredentials');
         }
+        // generate the token
+        const token = generateToken(user);
+        res.status(200).json({ token });
     }
     catch(error){
-        res.status(500).send("Error: " + error);
+        res.status(500).send('Error logging in: ' + error.message);
+    }
+});
+
+
+// PUT method
+router.put('', verifyToken, async (req, res) => {
+    const { name, email, phone, password } = req.body;
+    const updateField = { name, email, phone, password };
+
+    try {
+        const user = await User.findOne({ email: req.user.userId });
+        if (!user || req.user.userId !== user._id.toString()) {
+            return res.status(404).send("User doesn't exist or you are not authorized to update this user");
+        } else {
+            await User.updateOne({ _id: user._id }, { $set: updateField });
+            res.send("User updated successfully");
+        }
+    } catch (error) {
+        res.status(500).send("Error: " + error.message);
     }
 });
 
 // DELETE method
-router.delete('/:id', async (req, res) => {
+router.delete('', async (req, res) => {
     try{
         const user = await User.findOne({ _id: req.params.id });
         if (!user){
