@@ -19,6 +19,13 @@ const { append } = require('express/lib/response');
 router.get('', verifyToken, async (req, res) => {
     try{
         const posts = await Post.find();
+
+        // Fisher-Yates (Knuth) Shuffle
+        for (let i = posts.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [posts[i], posts[j]] = [posts[j], posts[i]];
+        }
+
         res.status(200).json(posts);
     }
     catch(error){
@@ -26,9 +33,21 @@ router.get('', verifyToken, async (req, res) => {
     }
 });
 
+// Get current user posts
 router.get('/me', verifyToken, async (req, res) => {
     try {
         const posts = await Post.find({ userId: req.user.userId });
+        res.json(posts);
+    } 
+    catch (error) {
+        res.status(400).send("Error: " + error);
+    }
+});
+
+// Get posts of user with  particular id
+router.get('/:id', verifyToken, async (req, res) => {
+    try {
+        const posts = await Post.find({ userId: req.params.id });
         res.json(posts);
     } 
     catch (error) {
@@ -63,8 +82,22 @@ router.put('', async (req, res) => {
 });
 
 // DELETE method
-router.delete('', async (req, res) => {
-    res.status(200).send('DELETE method');
+router.delete('/:postId', verifyToken, async (req, res) => {
+    try{
+        const post = await Post.findById(req.params.postId);
+        console.log(req.user.userId, post.userId);
+        if(post.userId != req.user.userId){
+            res.status(404).send("Cannot delete the post");
+        }
+        else{
+            await Post.deleteOne({_id: req.params.postId});
+            res.status(200).send("Deleted succesfully");
+        }
+    }
+    catch(error){
+        console.log('Error: ' + error);
+        res.status(500).send("Error: " + error);
+    }
 });
 
 // PATCH method

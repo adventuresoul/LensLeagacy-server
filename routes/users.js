@@ -1,6 +1,9 @@
 // express instance
 const express = require('express');
 
+// Bcrypt instance for password hashing
+const bcrypt = require('bcrypt'); 
+
 // define a route for users
 const router = express.Router();
 
@@ -55,13 +58,22 @@ router.get('/:id', verifyToken, async (req, res) => {
 });
 
 // POST method
-router.post('/', async (req, res) => {
+router.post('', async (req, res) => {
+    // Generate a salt
+    const salt = await bcrypt.genSalt(10);
+
+    // Hash the password with the salt
+    const hashedPassword = await bcrypt.hash(req.body.password, salt);
+
+
     // creating a new User model
     const newUser = new User({
         username : req.body.username,
         email : req.body.email,
         phone : req.body.phone,
-        password : req.body.password
+        instagramUsername: req.body.instagramUsername,
+        password : hashedPassword,
+        profilePhotoUrl: req.body.profilePhotoUrl
     });
 
     // insert the document in collection
@@ -70,6 +82,7 @@ router.post('/', async (req, res) => {
         res.status(200).json(userAck);
     }
     catch(error){
+        console.log(error);
         res.status(500).send("Error: " + error);
     }
 });
@@ -81,14 +94,18 @@ router.post('/login', async (req, res) => {
 
     // authenticate the user
     try{
-        const user = await User.findOne({ email: email, password: password });
+        const user = await User.findOne({ email: email });
+
         if(!user){
             return res.status(401).send('Invalid credentials');
         }
-        const isPasswordValid = password === user.password;
-        if(!isPasswordValid){
-            return res.status(401).send('Invalid ccredentials');
+        
+        // check for password matching
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).send('Invalid credentials');
         }
+
         // generate the token
         const token = generateToken(user);
         res.status(200).json({ token });
@@ -118,19 +135,21 @@ router.put('', verifyToken, async (req, res) => {
 });
 
 // DELETE method
-router.delete('', async (req, res) => {
-    try{
-        const user = await User.findOne({ _id: req.params.id });
-        if (!user){
-            res.status(404).send("User doesn't exist");
+router.delete('', verifyToken, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).send("User doesn't exist");
         }
-        else{
-            await User.deleteOne({ _id: req.params.id });
-            res.send("User deleted succesfully");
-        }
-    }
-    catch(error){
-        res.status(500).send("Error: " + error);
+
+        const deleteResult = await User.deleteOne({ _id: userId });
+        res.status(200).send("User deleted successfully");
+    } 
+    catch (error) {
+        console.error(`Error: ${error.message}`);
+        res.status(500).send("Error: " + error.message);
     }
 });
 

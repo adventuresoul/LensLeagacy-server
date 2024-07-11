@@ -5,10 +5,27 @@ require('dotenv').config(); // Load environment variables
 
 const app = express();
 
+// logger
+const loggermiddleware = (req, res, next) => {
+  const start = Date.now(); // Start timestamp
+  
+  res.on('finish', () => {
+    const end = Date.now(); // End timestamp
+    const duration = end - start;
+    const currentTimestamp = new Date().toISOString();
+    const status = res.statusCode;
+    console.log(`[${currentTimestamp}] ${req.method} ${req.url} ${status} - ${duration}ms`);
+  });
+  
+  next();
+}
+
 // Middleware to parse URL-encoded data and JSON data
+app.use(loggermiddleware);
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); 
+
 
 // Connect to MongoDB
 const connectToMongoDB = require('./models/dbConfigure');
