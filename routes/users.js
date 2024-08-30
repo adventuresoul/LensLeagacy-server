@@ -118,17 +118,46 @@ router.post('/login', async (req, res) => {
 
 // PUT method
 router.put('', verifyToken, async (req, res) => {
-    const { name, email, phone, password } = req.body;
-    const updateField = { name, email, phone, password };
+    const { username, email, phone, instagramUsername, password, profilePhotoUrl } = req.body;
+    const updateFields = {};
+
+
+    // only change whatever modifications have come from frontend
+    if (username) {
+        updateFields.username = username;
+    }
+    if (email) {
+        updateFields.email = email;
+    }
+    if (phone) {
+        updateFields.phone = phone;
+    }
+    if (instagramUsername) {
+        updateFields.instagramUsername = instagramUsername;
+    }
+    if (profilePhotoUrl) {
+        updateFields.profilePhotoUrl = profilePhotoUrl;
+    }
+    if (password) {
+        const salt = await bcrypt.genSalt(10);
+        updateFields.password = await bcrypt.hash(password, salt);
+    }
 
     try {
-        const user = await User.findOne({ email: req.user.userId });
-        if (!user || req.user.userId !== user._id.toString()) {
-            return res.status(404).send("User doesn't exist or you are not authorized to update this user");
-        } else {
-            await User.updateOne({ _id: user._id }, { $set: updateField });
-            res.send("User updated successfully");
+        const user = await User.findById(req.user.userId);
+        if (!user) {
+            return res.status(404).send("User not found");
         }
+
+        // authorized user only to update their own profile
+        if (req.user.userId !== user._id.toString()) {
+            return res.status(403).send("You are not authorized to update this user");
+        }
+
+        // Update the user with the new fields
+        const updatedUser = await User.findByIdAndUpdate(req.user.userId, { $set: updateFields }, { new: true, runValidators: true });
+
+        res.status(200).json(updatedUser);
     } catch (error) {
         res.status(500).send("Error: " + error.message);
     }
@@ -153,34 +182,6 @@ router.delete('', verifyToken, async (req, res) => {
     }
 });
 
-// PATCH method
-router.patch('/:id', async ( req, res ) => {
-    const { name, email, phone, password } = req.body;
-    const updateParams = {}
-    if (name){
-        updateField.name = name;
-    }
-    if (email){
-        updateField.email = email;
-    }
-    if (phone) {
-        updateField.phone = phone;
-    }
-    if (password) {
-        updateField.password = password;
-    }
-    try{
-        const user = await User.findOne({ _id: req.params.id });
-        if(!user){
-            return res.status(400).send("User doesn't exist");
-        }
-        await User.updateOne({ email: req.body.email }, { $set: updateField }, { new: true, runValidators: true });
-        res.send("User updated succesfully");
-    }
-    catch (error){
-        res.status(500).send("Error: " + error);
-    }
-});
 
 
 // export the users route
