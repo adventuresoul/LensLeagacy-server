@@ -8,9 +8,8 @@ LensLegacy Server is the backend service for the LensLegacy photography platform
 
 ## Features
 - User authentication (JWT-based)
-- Photo metadata management
+- Photo management
 - API for managing users and galleries
-- Basic photo editing functionalities (crop, resize)
 
 ## Technologies
 - **Node.js**
